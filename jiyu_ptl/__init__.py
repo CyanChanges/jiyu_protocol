@@ -99,10 +99,10 @@ class JiyuProtocol:
         return u''.join(map(chr, cls.jy_cmd_bytes[key]))
 
     @classmethod
-    def send_content(cls, content: str, is_cmd=False,
+    def send_content(cls, content: str, is_cmd=False, port=4705,
                      ip_network: Union[ipaddress.IPv4Network, ipaddress.IPv6Network] | None = None,
                      ip_addresses: Union[tuple[ipaddress.IPv4Network | ipaddress.IPv6Network],
-                                         list[ipaddress.IPv4Network | ipaddress.IPv6Network]] = []):
+                                         list[ipaddress.IPv4Address | ipaddress.IPv4Address]] = []):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         if is_cmd:
             send_data = cls.jy_cmd_bytes['command'] + cls._hl_build(content)
@@ -110,26 +110,26 @@ class JiyuProtocol:
             send_data = cls.jy_cmd_bytes['message'] + cls._hl_build(content)
         length = 0
         if ip_network:
-            length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), ip_network.broadcast_address)
+            length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), (str(ip_network.broadcast_address), port))
         if ip_addresses:
             for ip_addr in ip_addresses:
-                length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), ip_addr)
+                length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), (str(ip_addr.network_address), port))
         sock.close()
         return length
 
     @classmethod
-    def send_shutdown(cls, is_reboot: bool = False,
+    def send_shutdown(cls, is_reboot: bool = False, port=4705,
                       ip_network: Union[ipaddress.IPv4Network, ipaddress.IPv6Network] | None = None,
                       ip_addresses: Union[tuple[ipaddress.IPv4Network | ipaddress.IPv6Network],
-                                          list[ipaddress.IPv4Network | ipaddress.IPv6Network]] = []):
+                                          list[ipaddress.IPv6Address | ipaddress.IPv6Address]] = []):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         snd_lst = set(ip_addresses)
         snd_data = cls.jy_cmd_bytes['reboot' if is_reboot else 'shutdown']
         snd_bytes = pack("%dB" % (len(snd_data)), *snd_data)
         if ip_network:
-            snd_lst += ip_network.broadcast_address
+            snd_lst += ip_network.broadcast_address.net
         for ip_addr in snd_lst:
-            sock.sendto(snd_bytes, ip_addr)
+            sock.sendto(snd_bytes, (str(ip_addr), port))
 
     @staticmethod
     def _hl_split_once(char):
