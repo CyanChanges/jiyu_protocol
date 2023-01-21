@@ -110,10 +110,13 @@ class JiyuProtocol:
             send_data = cls.jy_cmd_bytes['message'] + cls._hl_build(content)
         length = 0
         if ip_network:
-            length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), (str(ip_network.broadcast_address), port))
+            length += sock.sendto(
+                pack("%dB\0" % (len(send_data)), *send_data),
+                (str(ip_network.broadcast_address), port)
+            )
         if ip_addresses:
             for ip_addr in ip_addresses:
-                length += sock.sendto(pack("%dB" % (len(send_data)), *send_data), (str(ip_addr.network_address), port))
+                length += sock.sendto(pack("%dB\0" % (len(send_data)), *send_data), (str(ip_addr), port))
         sock.close()
         return length
 
@@ -125,11 +128,13 @@ class JiyuProtocol:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         snd_lst = set(ip_addresses)
         snd_data = cls.jy_cmd_bytes['reboot' if is_reboot else 'shutdown']
-        snd_bytes = pack("%dB" % (len(snd_data)), *snd_data)
+        snd_bytes = pack("%dB\0" % (len(snd_data)), *snd_data)
         if ip_network:
-            snd_lst += ip_network.broadcast_address.net
+            snd_lst.update((ip_network.broadcast_address,))
+        length = 0
         for ip_addr in snd_lst:
-            sock.sendto(snd_bytes, (str(ip_addr), port))
+            length += sock.sendto(snd_bytes, (str(ip_addr), port))
+        return length
 
     @staticmethod
     def _hl_split_once(char):
